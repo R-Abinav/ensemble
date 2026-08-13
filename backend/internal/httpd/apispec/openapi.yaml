@@ -463,6 +463,56 @@ paths:
       summary: Run the legacy AO project import through the daemon store
       tags:
       - import
+  /api/v1/invite:
+    get:
+      operationId: inviteMobile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileInviteResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Generate a mobile invite link
+      tags:
+      - mobile
+  /api/v1/invite/rotate:
+    post:
+      operationId: rotateMobileInvite
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileInviteResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Explicitly rotate the mobile invite link password
+      tags:
+      - mobile
   /api/v1/mobile/disable:
     post:
       operationId: disableMobile
@@ -5002,6 +5052,8 @@ components:
           - mergeable
           - merged
           type: string
+        spaceId:
+          type: string
         status:
           enum:
           - working
@@ -6123,6 +6175,16 @@ components:
       - ok
       - prNumber
       - method
+      type: object
+    MobileInviteResponse:
+      properties:
+        link:
+          type: string
+        password:
+          type: string
+      required:
+      - link
+      - password
       type: object
     MobileStatusResponse:
       properties:
@@ -7491,6 +7553,8 @@ components:
           type: string
         prompt:
           maxLength: 4096
+          type: string
+        spaceId:
           type: string
       required:
       - projectId

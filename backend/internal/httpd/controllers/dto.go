@@ -1115,6 +1115,12 @@ type MobileStatusResponse struct {
 	Warning  string `json:"warning"`
 }
 
+// MobileInviteResponse is the body of GET /api/v1/invite.
+type MobileInviteResponse struct {
+	Link     string `json:"link"`
+	Password string `json:"password"`
+}
+
 // PushDeviceTokenParam is the {token} path parameter for push-device routes.
 type PushDeviceTokenParam struct {
 	Token string `path:"token" description:"Expo push token (URL-encoded) identifying the device."`

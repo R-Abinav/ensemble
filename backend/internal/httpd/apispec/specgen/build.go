@@ -321,8 +321,9 @@ var schemaNames = map[string]string{
 	// httpd/controllers: dev wire envelopes
 	"ControllersDevImportProjectsRequest":  "DevImportProjectsRequest",
 	"ControllersDevImportProjectsResponse": "DevImportProjectsResponse",
-	// httpd/controllers: mobile wire envelopes
+	// httpd/controllers: mobile bridge
 	"ControllersMobileStatusResponse": "MobileStatusResponse",
+	"ControllersMobileInviteResponse": "MobileInviteResponse",
 	// devimport report
 	"DevimportReport":   "DevImportProjectsReport",
 	"DevimportConflict": "DevImportProjectsConflict",
@@ -867,6 +868,24 @@ func mobileOperations() []operation {
 			resps: []respUnit{
 				{http.StatusOK, controllers.MobileStatusResponse{}},
 				{http.StatusForbidden, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/invite", id: "inviteMobile", tag: "mobile",
+			summary: "Generate a mobile invite link",
+			resps: []respUnit{
+				{http.StatusOK, controllers.MobileInviteResponse{}},
+				{http.StatusForbidden, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/invite/rotate", id: "rotateMobileInvite", tag: "mobile",
+			summary: "Explicitly rotate the mobile invite link password",
+			resps: []respUnit{
+				{http.StatusOK, controllers.MobileInviteResponse{}},
+				{http.StatusForbidden, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
 			},
 		},
 		{

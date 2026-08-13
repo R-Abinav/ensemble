@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -64,6 +65,43 @@ func (c *MobileController) Regenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	envelope.WriteJSON(w, http.StatusOK, withWarning(res))
+}
+
+// Invite generates a shareable link and a fresh password for the LAN listener, starting it if necessary.
+// If the listener is already enabled, it returns the existing credentials without rotating them.
+func (c *MobileController) Invite(w http.ResponseWriter, r *http.Request) {
+	res := c.Bridge.Status()
+	var err error
+	if !res.Enabled {
+		res, err = c.Bridge.Enable()
+		if err != nil {
+			envelope.WriteAPIError(w, r, http.StatusInternalServerError, "internal", "MOBILE_INVITE", err.Error(), nil)
+			return
+		}
+	}
+	
+	// Create the invite formatted as requested. We do not include the unencrypted warning 
+	// here because the password and link are presented, but not as part of the normal status.
+	invite := MobileInviteResponse{
+		Link:     fmt.Sprintf("ensemble://join?host=%s&port=%d", res.Host, res.Port),
+		Password: res.Password,
+	}
+	envelope.WriteJSON(w, http.StatusOK, invite)
+}
+
+// RotateInvite explicitly rotates the connection password for the invite link and returns the new credentials.
+func (c *MobileController) RotateInvite(w http.ResponseWriter, r *http.Request) {
+	res, err := c.Bridge.Regenerate()
+	if err != nil {
+		envelope.WriteAPIError(w, r, http.StatusInternalServerError, "internal", "MOBILE_ROTATE", err.Error(), nil)
+		return
+	}
+	
+	invite := MobileInviteResponse{
+		Link:     fmt.Sprintf("ensemble://join?host=%s&port=%d", res.Host, res.Port),
+		Password: res.Password,
+	}
+	envelope.WriteJSON(w, http.StatusOK, invite)
 }
 
 // LANController is the runtime hook set the concrete bridge needs. httpd's

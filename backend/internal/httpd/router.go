@@ -136,6 +136,9 @@ func mountMobile(r chi.Router, c *controllers.MobileController) {
 	r.Post("/api/v1/mobile/enable", c.Enable)
 	r.Post("/api/v1/mobile/disable", c.Disable)
 	r.Post("/api/v1/mobile/regenerate", c.Regenerate)
+	
+	r.Get("/api/v1/invite", c.Invite)
+	r.Post("/api/v1/invite/rotate", c.RotateInvite)
 }
 
 type cliInvokedRequest struct {
