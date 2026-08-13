@@ -44,6 +44,7 @@ import {
 	useTerminateSessionState,
 } from "../hooks/useTerminateSession";
 import { useWorkspaceQuery, workspaceQueryKey } from "../hooks/useWorkspaceQuery";
+import { useSpacesQuery, useCreateSpace } from "../hooks/useSpaces";
 import { NotificationCenter } from "./NotificationCenter";
 import { BoardWelcome, ProjectBoardEmpty } from "./BoardEmptyStates";
 import { OrchestratorIcon } from "./icons";
@@ -106,6 +107,9 @@ export function SessionsBoard({ projectId }: SessionsBoardProps) {
 	const sessions = workspaces.flatMap((w) => workerSessions(w.sessions));
 	const orchestrator = projectId ? newestActiveOrchestrator(workspaces[0]?.sessions ?? []) : undefined;
 	const orchestratorActivityLabel = orchestrator ? getAgentActivityView(orchestrator.activity, t).label : undefined;
+	const [groupBy, setGroupBy] = useState<"lane" | "space">("lane");
+	const spacesQuery = useSpacesQuery();
+	const createSpace = useCreateSpace();
 	const [isSpawning, setIsSpawning] = useState(false);
 	const [spawnError, setSpawnError] = useState<string | null>(null);
 	const [canCreateAsTui, setCanCreateAsTui] = useState(false);
@@ -148,6 +152,37 @@ export function SessionsBoard({ projectId }: SessionsBoardProps) {
 		const zone = attentionZone(session);
 		(byZone.get(zone) ?? byZone.set(zone, []).get(zone)!).push(session);
 	}
+
+	const bySpace = new Map<string, WorkspaceSession[]>();
+	const spaceColumns: Column[] = [];
+	if (groupBy === "space") {
+		for (const session of sessions.filter((candidate) => !isArchivedSession(candidate))) {
+			const sid = session.spaceId || "unassigned";
+			(bySpace.get(sid) ?? bySpace.set(sid, []).get(sid)!).push(session);
+		}
+		
+		(spacesQuery.data ?? []).forEach(s => {
+			spaceColumns.push({
+				zone: s.ID as any,
+				label: s.Name,
+				dot: "var(--color-status-working)",
+				dotGlow: false,
+				titleClassName: "text-foreground",
+				glow: "",
+				dotClassName: "",
+			});
+		});
+		spaceColumns.push({
+			zone: "unassigned" as any,
+			label: "Unassigned",
+			dot: "var(--color-status-idle)",
+			dotGlow: false,
+			titleClassName: "text-passive",
+			glow: "",
+			dotClassName: "",
+		});
+	}
+
 	// First-run orientation replaces the empty column shells (only once the
 	// query has resolved, so the welcome never flashes over real data): the
 	// global board teaches the app before any project exists, and a fresh
@@ -276,6 +311,31 @@ export function SessionsBoard({ projectId }: SessionsBoardProps) {
 					{t("newTask.createAsTui")}
 				</TopbarButton>
 			) : null}
+			
+			<div className="flex shrink-0 items-center gap-1 pr-2 mr-1">
+				<select
+					value={groupBy}
+					onChange={(e) => setGroupBy(e.target.value as "lane" | "space")}
+					className="bg-transparent text-xs text-muted-foreground outline-none focus:ring-0 px-1"
+				>
+					<option value="lane">By lane</option>
+					<option value="space">By space</option>
+				</select>
+				{groupBy === "space" && (
+					<TopbarButton 
+						onClick={() => {
+							const name = window.prompt("Space name:");
+							if (name) createSpace.mutate({ name });
+						}} 
+						variant="icon" 
+						aria-label="New space"
+						className="px-2"
+					>
+						<Plus className="size-icon-sm" aria-hidden="true" />
+					</TopbarButton>
+				)}
+			</div>
+
 			<TopbarButton
 				aria-label={t("shell.newTask")}
 				disabled={isProjectRestarting}
@@ -367,16 +427,22 @@ export function SessionsBoard({ projectId }: SessionsBoardProps) {
 						{/* Hairline column grid: vertical divide-x + one absolute header rule so
 						    the horizontal divider stays continuous and level across lanes.
 						    Keep `top-12` aligned with each column header's `h-12`. */}
-						<div className="relative grid h-full min-w-[64rem] grid-cols-4 divide-x divide-border-strong xl:min-w-0">
+						<div 
+							className="relative grid h-full divide-x divide-border-strong overflow-x-auto overflow-y-hidden"
+							style={{ 
+								gridTemplateColumns: `repeat(${groupBy === "space" ? spaceColumns.length : COLUMNS.length}, minmax(16rem, 1fr))`,
+								minWidth: groupBy === "space" ? `${spaceColumns.length * 16}rem` : "64rem" 
+							}}
+						>
 							<div
 								aria-hidden="true"
 								className="pointer-events-none absolute inset-x-0 top-12 z-10 border-t border-border-strong"
 							/>
-							{COLUMNS.map((col) => (
+							{(groupBy === "space" ? spaceColumns : COLUMNS).map((col) => (
 								<BoardColumn
 									key={`${projectId ?? "all"}:${col.zone}`}
 									col={col}
-									sessions={byZone.get(col.zone) ?? []}
+									sessions={groupBy === "space" ? (bySpace.get(col.zone) ?? []) : (byZone.get(col.zone) ?? [])}
 									onOpen={openSession}
 									onTerminate={(session) => terminateSession.mutate(session)}
 									usageBySession={usageBySession}
