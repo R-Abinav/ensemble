@@ -1,7 +1,7 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import type { components } from "../../api/schema";
 import { aoBridge } from "./bridge";
-import { apiClient, apiErrorMessage, getApiBaseUrl, subscribeApiBaseUrl } from "./api-client";
+import { apiClient, apiErrorMessage, getApiBaseUrl, hasTrustedApiBaseUrl, subscribeApiBaseUrl, createAuthEventSource } from "./api-client";
 
 export type NotificationDTO = components["schemas"]["NotificationResponse"];
 export type NotificationsPage = components["schemas"]["ListNotificationsResponse"];
@@ -288,7 +288,7 @@ export function createNotificationsTransport(
 	return {
 		connect() {
 			let retryTimer: ReturnType<typeof setTimeout> | undefined;
-			let source: EventSource | undefined;
+			let source: any;
 			let sourceBaseUrl: string | undefined;
 
 			const invalidateNotifications = () => {
@@ -305,19 +305,19 @@ export function createNotificationsTransport(
 			};
 
 			const connectSource = () => {
-				if (typeof EventSource === "undefined") return;
+				if (!hasTrustedApiBaseUrl()) return;
 				const baseUrl = getApiBaseUrl();
 				if (source && sourceBaseUrl === baseUrl && source.readyState !== EVENTSOURCE_CLOSED) return;
 				source?.close();
 				source = undefined;
 				sourceBaseUrl = baseUrl;
 				try {
-					source = new EventSource(`${baseUrl.replace(/\/+$/, "")}/api/v1/notifications/stream`);
+					source = createAuthEventSource(`${baseUrl.replace(/\/+$/, "")}/api/v1/notifications/stream`);
 					source.onopen = invalidateNotifications;
 					source.onerror = () => {
-						if (source?.readyState === EVENTSOURCE_CLOSED) scheduleRetry();
+						if ((source as any)?.readyState === EVENTSOURCE_CLOSED) scheduleRetry();
 					};
-					source.addEventListener("notification_created", (event) => {
+					source.addEventListener("notification_created", (event: any) => {
 						const notification = parseNotificationEvent(event);
 						if (!notification) return;
 						const inserted = mergeUnreadNotification(queryClient, notification);
@@ -334,7 +334,7 @@ export function createNotificationsTransport(
 					// AO closed the underlying issue (the session got its input, the
 					// PR stopped waiting on a merge). Patch the row live so an open
 					// panel reflects that without waiting for a refetch.
-					source.addEventListener("notification_resolved", (event) => {
+					source.addEventListener("notification_resolved", (event: any) => {
 						const notification = parseNotificationEvent(event);
 						if (!notification) return;
 						applyResolvedNotification(queryClient, notification);

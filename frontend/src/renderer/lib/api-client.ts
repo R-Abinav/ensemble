@@ -12,6 +12,7 @@ const explicitApiBaseUrl = import.meta.env.VITE_AO_API_BASE_URL;
 const initialApiBaseUrl = explicitApiBaseUrl ?? (import.meta.env.DEV ? devApiBaseUrl() : "http://127.0.0.1:3001");
 
 let runtimeApiBaseUrl: string | null = explicitApiBaseUrl ?? null;
+let runtimeApiToken: string | null = null;
 let daemonStatus: DaemonStatus = { state: "stopped" };
 
 const baseUrlListeners = new Set<() => void>();
@@ -41,6 +42,10 @@ export function setApiBaseUrl(nextBaseUrl: string | null): void {
 	if (normalized === runtimeApiBaseUrl) return;
 	runtimeApiBaseUrl = normalized;
 	baseUrlListeners.forEach((listener) => listener());
+}
+
+export function setApiToken(nextToken: string | null): void {
+	runtimeApiToken = nextToken;
 }
 
 // The renderer records every supervisor status here so API requests made while
@@ -215,9 +220,15 @@ async function runtimeFetch(input: Request): Promise<Response> {
 		// every POST would fail in the packaged app. API bodies are small JSON;
 		// buffering sidesteps streaming-duplex semantics entirely.
 		const body = input.method === "GET" || input.method === "HEAD" ? undefined : await input.arrayBuffer();
+		
+		const headers = new Headers(input.headers);
+		if (runtimeApiToken) {
+			headers.set("Authorization", `Bearer ${runtimeApiToken}`);
+		}
+		
 		return fetch(target, {
 			method: input.method,
-			headers: input.headers,
+			headers,
 			body,
 			signal: input.signal,
 			credentials: input.credentials,
@@ -249,6 +260,92 @@ export const apiClient = createClient<paths>({
 	baseUrl: initialApiBaseUrl,
 	fetch: runtimeFetch,
 });
+
+export class AuthEventSource extends EventTarget {
+	static readonly CONNECTING = 0;
+	static readonly OPEN = 1;
+	static readonly CLOSED = 2;
+
+	public readyState = AuthEventSource.CONNECTING;
+	public readonly url: string;
+	public onopen: ((ev: Event) => void) | null = null;
+	public onmessage: ((ev: MessageEvent) => void) | null = null;
+	public onerror: ((ev: Event) => void) | null = null;
+
+	private abortController: AbortController | null = null;
+
+	constructor(url: string) {
+		super();
+		this.url = url;
+		this.connect();
+	}
+
+	private async connect() {
+		this.abortController = new AbortController();
+		try {
+			const req = new Request(this.url, {
+				headers: { Accept: "text/event-stream" },
+				signal: this.abortController.signal,
+			});
+			const response = await runtimeFetch(req);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+			this.readyState = AuthEventSource.OPEN;
+			const openEv = new Event("open");
+			this.onopen?.(openEv);
+			this.dispatchEvent(openEv);
+
+			const reader = response.body?.getReader();
+			if (!reader) throw new Error("No response body");
+			const decoder = new TextDecoder();
+			let buffer = "";
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+				const parts = buffer.split("\n\n");
+				buffer = parts.pop() ?? "";
+				for (const chunk of parts) {
+					const lines = chunk.split("\n");
+					let eventType = "message";
+					let data = "";
+					for (const line of lines) {
+						if (line.startsWith("event: ")) eventType = line.slice(7);
+						if (line.startsWith("data: ")) data += (data ? "\n" : "") + line.slice(6);
+					}
+					if (data) {
+						const msgEv = new MessageEvent(eventType, { data });
+						if (eventType === "message") this.onmessage?.(msgEv);
+						this.dispatchEvent(msgEv);
+					}
+				}
+			}
+			this.closeWithError();
+		} catch (e: any) {
+			if (e.name === "AbortError") return;
+			this.closeWithError();
+		}
+	}
+
+	private closeWithError() {
+		this.readyState = AuthEventSource.CLOSED;
+		const errEv = new Event("error");
+		this.onerror?.(errEv);
+		this.dispatchEvent(errEv);
+	}
+
+	public close() {
+		this.readyState = AuthEventSource.CLOSED;
+		this.abortController?.abort();
+	}
+}
+
+export function createAuthEventSource(url: string): any {
+	return new AuthEventSource(url);
+}
+
 
 /**
  * Human-readable message from an openapi-fetch `error` value. The daemon's

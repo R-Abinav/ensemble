@@ -20,10 +20,13 @@ import {
 	Settings,
 	Trash2,
 	User,
+	MonitorSmartphone,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { UpdateStatus } from "../../main/update-settings";
+import { getApiBaseUrl, subscribeApiBaseUrl } from "../lib/api-client";
+import { JoinSessionDialog } from "./JoinSessionDialog";
 import {
 	hasConfiguredOrchestratorAgent,
 	newestActiveOrchestrator,
@@ -251,6 +254,24 @@ export function Sidebar({
 			return bTime - aTime;
 		});
 
+	const apiBaseUrl = useSyncExternalStore(subscribeApiBaseUrl, getApiBaseUrl);
+	const [joinSessionOpen, setJoinSessionOpen] = useState(false);
+	
+	let connectionIndicator = null;
+	if (apiBaseUrl) {
+		try {
+			const url = new URL(apiBaseUrl);
+			if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
+				connectionIndicator = (
+					<span className="sidebar-expanded-chrome shrink-0 rounded-full bg-blue-subtle px-1.5 py-0.5 text-micro font-semibold leading-none text-blue-accent group-data-[collapsible=icon]:hidden flex items-center gap-1">
+						<MonitorSmartphone className="size-3" />
+						{url.hostname}
+					</span>
+				);
+			}
+		} catch (e) {}
+	}
+
 	return (
 		// Pinned sidebars start below shell chrome. Hover previews paint a
 		// full-height surface behind the titlebar while their content keeps the
@@ -313,13 +334,16 @@ export function Sidebar({
 							{t("shell.nightly")}
 						</span>
 					)}
+					{connectionIndicator}
 				</div>
 			</SidebarHeader>
+
+			<JoinSessionDialog open={joinSessionOpen} onOpenChange={setJoinSessionOpen} />
 
 			{/* Keep Search + section chrome fixed; only the project tree scrolls. */}
 			<div className="flex shrink-0 flex-col gap-0 px-2 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1.5">
 				{commandPaletteEnabled ? (
-					<SidebarGroup className="p-0 pb-4">
+					<SidebarGroup className="p-0 pb-2">
 						<SidebarGroupContent>
 							<SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:gap-1">
 								<SidebarSearchButton onOpen={() => setCommandPaletteOpen(true)} />
@@ -327,6 +351,22 @@ export function Sidebar({
 						</SidebarGroupContent>
 					</SidebarGroup>
 				) : null}
+
+				<SidebarGroup className="p-0 pb-4">
+					<SidebarGroupContent>
+						<SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:gap-1">
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									tooltip="Join a remote session"
+									onClick={() => setJoinSessionOpen(true)}
+								>
+									<LogIn className="sidebar-menu-icon" />
+									<span className="sidebar-expanded-chrome">Join remote session</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
 
 				{/* Pinned — collapsible; hidden when empty. */}
 				{pinnedSessions.length > 0 && (

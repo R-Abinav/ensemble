@@ -1,6 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { aoBridge } from "./bridge";
-import { getApiBaseUrl, hasTrustedApiBaseUrl, subscribeApiBaseUrl } from "./api-client";
+import {
+	getApiBaseUrl,
+	hasTrustedApiBaseUrl,
+	subscribeApiBaseUrl,
+	createAuthEventSource,
+} from "./api-client";
 import { setEventsConnectionState } from "./events-connection";
 import { workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { sessionScmSummaryQueryKey } from "../hooks/useSessionScmSummary";
@@ -49,7 +54,7 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 			const pendingConversationSessions = new Set<string>();
 			let workspaceInvalidationPending = false;
 			let retryTimer: ReturnType<typeof setTimeout> | undefined;
-			let source: EventSource | undefined;
+			let source: any;
 			let sourceBaseUrl: string | undefined;
 			const refreshWorkspaces = (event?: Event) => {
 				let conversationOnly = false;
@@ -107,8 +112,6 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 			};
 
 			const connectSource = () => {
-				// EventSource is unavailable in jsdom (tests) and some preview surfaces; guard it.
-				if (typeof EventSource === "undefined") return;
 				if (!hasTrustedApiBaseUrl()) {
 					source?.close();
 					source = undefined;
@@ -124,7 +127,7 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 				source = undefined;
 				sourceBaseUrl = baseUrl;
 				try {
-					source = new EventSource(`${baseUrl.replace(/\/+$/, "")}/api/v1/events`);
+					source = createAuthEventSource(`${baseUrl.replace(/\/+$/, "")}/api/v1/events`);
 					source.onopen = () => {
 						setEventsConnectionState("connected");
 						// Events emitted during the gap were lost; refetch once on (re)open.
@@ -135,7 +138,8 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 						// either way the stream is not delivering, so surface it instead
 						// of looping silently against a dead daemon.
 						setEventsConnectionState("disconnected");
-						if (source?.readyState === EVENTSOURCE_CLOSED) scheduleRetry();
+						// 2 is CLOSED in our AuthEventSource and EventSource polyfills
+						if ((source as any)?.readyState === 2) scheduleRetry();
 					};
 					source.onmessage = refreshWorkspaces; // unnamed events, if any
 					for (const type of CDC_EVENT_TYPES) {
