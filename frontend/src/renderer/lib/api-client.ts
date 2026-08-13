@@ -48,6 +48,10 @@ export function setApiToken(nextToken: string | null): void {
 	runtimeApiToken = nextToken;
 }
 
+export function getApiToken(): string | null {
+	return runtimeApiToken;
+}
+
 // The renderer records every supervisor status here so API requests made while
 // no daemon URL is trusted can return the actual startup failure, not a generic
 // availability message.
@@ -192,6 +196,7 @@ function reportApiError(operation: string, category: ApiErrorCategory, status?: 
 }
 
 async function runtimeFetch(input: Request): Promise<Response> {
+	console.log("[runtimeFetch] input headers", Object.fromEntries(new Headers(input.headers).entries()), "mode:", input.mode);
 	const operation = normalizeApiOperation(input.method, new URL(input.url).pathname);
 	const baseUrl = runtimeApiBaseUrl;
 	if (baseUrl === null) {
@@ -209,9 +214,6 @@ async function runtimeFetch(input: Request): Promise<Response> {
 
 		const url = new URL(input.url);
 		const target = new URL(url.pathname + url.search + url.hash, baseUrl);
-		if (target.href === input.url) {
-			return fetch(input);
-		}
 
 		// Rebase onto the runtime base URL by copying fields explicitly and
 		// buffering the body. `new Request(target, input)` reads the source
@@ -226,6 +228,8 @@ async function runtimeFetch(input: Request): Promise<Response> {
 			headers.set("Authorization", `Bearer ${runtimeApiToken}`);
 		}
 		
+		console.log("[runtimeFetch] final headers", Object.fromEntries(headers.entries()));
+
 		return fetch(target, {
 			method: input.method,
 			headers,
@@ -281,13 +285,16 @@ export class AuthEventSource extends EventTarget {
 	}
 
 	private async connect() {
+		console.log("[AuthEventSource] connect called for", this.url, "token:", runtimeApiToken);
 		this.abortController = new AbortController();
 		try {
 			const req = new Request(this.url, {
 				headers: { Accept: "text/event-stream" },
 				signal: this.abortController.signal,
 			});
+			console.log("[AuthEventSource] created request, calling runtimeFetch...");
 			const response = await runtimeFetch(req);
+			console.log("[AuthEventSource] runtimeFetch returned", response.status);
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}
@@ -323,8 +330,8 @@ export class AuthEventSource extends EventTarget {
 				}
 			}
 			this.closeWithError();
-		} catch (e: any) {
-			if (e.name === "AbortError") return;
+		} catch (err) {
+			console.log("[AuthEventSource] Exception in connect:", err);
 			this.closeWithError();
 		}
 	}

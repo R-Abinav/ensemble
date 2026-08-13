@@ -156,9 +156,10 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 				connectSource();
 				refreshWorkspaces();
 			});
-			// Rebind when the daemon comes back on a different port, independent of
-			// status-event ordering.
-			const removeBaseUrlListener = subscribeApiBaseUrl(connectSource);
+			const removeBaseUrlListener = subscribeApiBaseUrl(() => {
+				connectSource();
+				refreshWorkspaces();
+			});
 			connectSource();
 
 			return () => {

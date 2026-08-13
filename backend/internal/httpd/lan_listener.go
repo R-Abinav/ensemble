@@ -35,7 +35,7 @@ type LANManager struct {
 func NewLANManager(handler http.Handler, state *authState, defaultPort int, log *slog.Logger, sink ports.EventSink) *LANManager {
 	lock := newLockout(5, time.Minute, time.Now)
 	return &LANManager{
-		handler:     lanControlBlock(authMiddleware(state, lock, newMobileConnectReporter(sink, time.Now))(handler)),
+		handler:     lanCORSMiddleware(lanControlBlock(authMiddleware(state, lock, newMobileConnectReporter(sink, time.Now))(handler))),
 		defaultPort: defaultPort,
 		log:         loggerOrDefault(log),
 		state:       state,
