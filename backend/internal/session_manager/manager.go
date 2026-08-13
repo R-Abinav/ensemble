@@ -2878,6 +2878,7 @@ func (m *Manager) cleanupRecords(ctx context.Context, project domain.ProjectID) 
 func seedRecord(cfg ports.SpawnConfig, now time.Time) domain.SessionRecord {
 	return domain.SessionRecord{
 		ProjectID:   cfg.ProjectID,
+		SpaceID:     cfg.SpaceID,
 		IssueID:     cfg.IssueID,
 		Kind:        cfg.Kind,
 		CreatedAt:   now,

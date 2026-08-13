@@ -164,6 +164,7 @@ type SpawnSessionRequest struct {
 	Kind      domain.SessionKind  `json:"kind,omitempty" enum:"worker,orchestrator"`
 	Harness   domain.AgentHarness `json:"harness,omitempty" enum:"claude-code,codex,aider,opencode,grok,droid,amp,agy,crush,cursor,qwen,copilot,goose,auggie,continue,devin,cline,kimi,muse,kiro,kilocode,vibe,pi,kimchi,prime-agent,autohand"`
 	Branch    string              `json:"branch,omitempty"`
+	SpaceID   string              `json:"spaceId,omitempty"`
 	// Mode picks the conversation controller: chat talks to the agent over a
 	// structured connection, tui opens the agent's native terminal interface.
 	// Omitted resolves to the daemon default (tui), which is why an upgrade

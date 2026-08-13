@@ -79,6 +79,7 @@ type SessionMetadata struct {
 type SessionRecord struct {
 	ID        SessionID    `json:"id"`
 	ProjectID ProjectID    `json:"projectId"`
+	SpaceID   string       `json:"spaceId,omitempty"`
 	IssueID   IssueID      `json:"issueId,omitempty"`
 	Kind      SessionKind  `json:"kind"`
 	Harness   AgentHarness `json:"harness,omitempty"`

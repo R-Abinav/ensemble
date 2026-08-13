@@ -115,7 +115,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     workspace_repo_path, terminate_on_pr_merge, diff_base_sha, diff_base_ref,
     reviewer_harness, is_pinned, pinned_at,
     session_mode, provider_conversation_id, controller_generation, browser_capability_verifier,
-    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review
+    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review, space_id
 FROM sessions WHERE id = ?
 `
 
@@ -157,6 +157,7 @@ type GetSessionRow struct {
 	LatestAssistantUpdate     string
 	NativeTranscriptPath      string
 	AutoInjectReview          bool
+	SpaceID                   sql.NullString
 }
 
 func (q *Queries) GetSession(ctx context.Context, id domain.SessionID) (GetSessionRow, error) {
@@ -200,6 +201,7 @@ func (q *Queries) GetSession(ctx context.Context, id domain.SessionID) (GetSessi
 		&i.LatestAssistantUpdate,
 		&i.NativeTranscriptPath,
 		&i.AutoInjectReview,
+		&i.SpaceID,
 	)
 	return i, err
 }
@@ -213,12 +215,12 @@ INSERT INTO sessions (
     latest_user_prompt, latest_assistant_update, native_transcript_path,
     preview_url, preview_revision, terminate_on_pr_merge, cleanup_generation, browser_capability_verifier,
     session_mode, provider_conversation_id, controller_generation,
-    created_at, updated_at, is_pinned, pinned_at, auto_inject_review
+    created_at, updated_at, is_pinned, pinned_at, auto_inject_review, space_id
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -260,6 +262,7 @@ type InsertSessionParams struct {
 	IsPinned                  bool
 	PinnedAt                  sql.NullTime
 	AutoInjectReview          bool
+	SpaceID                   sql.NullString
 }
 
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
@@ -301,6 +304,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.IsPinned,
 		arg.PinnedAt,
 		arg.AutoInjectReview,
+		arg.SpaceID,
 	)
 	return err
 }
@@ -314,7 +318,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     workspace_repo_path, terminate_on_pr_merge, diff_base_sha, diff_base_ref,
     reviewer_harness, is_pinned, pinned_at,
     session_mode, provider_conversation_id, controller_generation, browser_capability_verifier,
-    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review
+    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review, space_id
 FROM sessions ORDER BY project_id, num
 `
 
@@ -356,6 +360,7 @@ type ListAllSessionsRow struct {
 	LatestAssistantUpdate     string
 	NativeTranscriptPath      string
 	AutoInjectReview          bool
+	SpaceID                   sql.NullString
 }
 
 func (q *Queries) ListAllSessions(ctx context.Context) ([]ListAllSessionsRow, error) {
@@ -405,6 +410,7 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]ListAllSessionsRow, er
 			&i.LatestAssistantUpdate,
 			&i.NativeTranscriptPath,
 			&i.AutoInjectReview,
+			&i.SpaceID,
 		); err != nil {
 			return nil, err
 		}
@@ -428,7 +434,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     workspace_repo_path, terminate_on_pr_merge, diff_base_sha, diff_base_ref,
     reviewer_harness, is_pinned, pinned_at,
     session_mode, provider_conversation_id, controller_generation, browser_capability_verifier,
-    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review
+    latest_user_prompt, latest_assistant_update, native_transcript_path, auto_inject_review, space_id
 FROM sessions WHERE project_id = ? ORDER BY num
 `
 
@@ -470,6 +476,7 @@ type ListSessionsByProjectRow struct {
 	LatestAssistantUpdate     string
 	NativeTranscriptPath      string
 	AutoInjectReview          bool
+	SpaceID                   sql.NullString
 }
 
 func (q *Queries) ListSessionsByProject(ctx context.Context, projectID domain.ProjectID) ([]ListSessionsByProjectRow, error) {
@@ -519,6 +526,7 @@ func (q *Queries) ListSessionsByProject(ctx context.Context, projectID domain.Pr
 			&i.LatestAssistantUpdate,
 			&i.NativeTranscriptPath,
 			&i.AutoInjectReview,
+			&i.SpaceID,
 		); err != nil {
 			return nil, err
 		}
@@ -721,7 +729,7 @@ UPDATE sessions SET
     preview_url = ?, preview_revision = ?, terminate_on_pr_merge = ?,
     cleanup_generation = ?, browser_capability_verifier = ?,
     provider_conversation_id = ?, controller_generation = ?, updated_at = ?,
-    is_pinned = ?, pinned_at = ?, auto_inject_review = ?
+    is_pinned = ?, pinned_at = ?, auto_inject_review = ?, space_id = ?
 WHERE id = ?
 `
 
@@ -758,6 +766,7 @@ type UpdateSessionParams struct {
 	IsPinned                  bool
 	PinnedAt                  sql.NullTime
 	AutoInjectReview          bool
+	SpaceID                   sql.NullString
 	ID                        domain.SessionID
 }
 
@@ -795,6 +804,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) er
 		arg.IsPinned,
 		arg.PinnedAt,
 		arg.AutoInjectReview,
+		arg.SpaceID,
 		arg.ID,
 	)
 	return err

@@ -332,6 +332,7 @@ func mapListAllSessionsRows(rows []gen.ListAllSessionsRow) []domain.SessionRecor
 func rowToRecord(row gen.GetSessionRow) domain.SessionRecord {
 	return domain.SessionRecord{
 		ID:              row.ID,
+		SpaceID:         row.SpaceID.String,
 		ProjectID:       row.ProjectID,
 		IssueID:         row.IssueID,
 		Kind:            row.Kind,
@@ -424,6 +425,7 @@ func recordToInsert(rec domain.SessionRecord, num int64) gen.InsertSessionParams
 		SessionMode:               domain.NormalizeSessionMode(rec.Mode),
 		ProviderConversationID:    rec.Metadata.ProviderConversationID,
 		ControllerGeneration:      rec.Metadata.ControllerGeneration,
+		SpaceID:                   sql.NullString{String: rec.SpaceID, Valid: rec.SpaceID != ""},
 		CreatedAt:                 rec.CreatedAt,
 		UpdatedAt:                 rec.UpdatedAt,
 	}
@@ -464,6 +466,7 @@ func recordToUpdate(rec domain.SessionRecord) gen.UpdateSessionParams {
 		BrowserCapabilityVerifier: rec.Metadata.BrowserCapabilityVerifier,
 		ProviderConversationID:    rec.Metadata.ProviderConversationID,
 		ControllerGeneration:      rec.Metadata.ControllerGeneration,
+		SpaceID:                   sql.NullString{String: rec.SpaceID, Valid: rec.SpaceID != ""},
 		UpdatedAt:                 rec.UpdatedAt,
 	}
 }

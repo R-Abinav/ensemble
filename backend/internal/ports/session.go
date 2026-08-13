@@ -14,6 +14,7 @@ var ErrSessionNotFound = errors.New("session not found")
 type SpawnConfig struct {
 	ProjectID domain.ProjectID
 	IssueID   domain.IssueID
+	SpaceID   string
 	// IssueContext is optional pre-fetched tracker context for the task prompt.
 	// Standing rules stay in SystemPrompt; issue facts belong to the user task.
 	IssueContext string
