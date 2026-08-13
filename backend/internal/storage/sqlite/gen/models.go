@@ -387,6 +387,7 @@ type Session struct {
 	LatestUserPrompt          string
 	LatestAssistantUpdate     string
 	NativeTranscriptPath      string
+	SpaceID                   sql.NullString
 }
 
 type SessionCleanupFact struct {
@@ -442,6 +443,12 @@ type ShellTerminal struct {
 	AppRunID   string
 	CreatedAt  time.Time
 	SessionID  sql.NullString
+}
+
+type Space struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
 }
 
 type TelemetryEvent struct {

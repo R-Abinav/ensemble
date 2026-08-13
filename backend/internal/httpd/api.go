@@ -42,6 +42,7 @@ type APIDeps struct {
 	// Conversations is nil until a Chat driver is wired; the controller then
 	// answers 501 rather than panicking, matching the other optional surfaces.
 	Conversations controllers.ConversationService
+	Spaces        controllers.SpacesService
 	// Settings is the daemon-owned preference surface.
 	Settings            controllers.SettingsService
 	DevImport           controllers.DevImportService
@@ -73,6 +74,7 @@ type API struct {
 	dev           *controllers.DevController
 	browser       *controllers.BrowserController
 	events        *EventsController
+	spaces        *controllers.SpacesController
 }
 
 // NewAPI constructs the API surface from its dependencies. cfg carries the
@@ -106,6 +108,7 @@ func NewAPI(cfg config.Config, deps APIDeps) *API {
 		dev:           &controllers.DevController{Import: deps.DevImport},
 		browser:       &controllers.BrowserController{Svc: deps.Browser},
 		events:        &EventsController{Source: deps.CDC, Live: deps.Events},
+		spaces:        &controllers.SpacesController{Svc: deps.Spaces},
 	}
 }
 
@@ -141,6 +144,7 @@ func (a *API) Register(root chi.Router) {
 			a.settings.Register(r)
 			a.dev.Register(r)
 			a.browser.Register(r)
+			a.spaces.Register(r)
 			// Sibling REST controllers plug in here.
 		})
 		// Agent switching synchronously collects a handoff, starts the target,
